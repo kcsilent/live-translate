@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>即時語音翻譯｜中英互譯</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F4F6; --surface:#FFFFFF; --ink:#1C2430; --muted:#687384; --line:#DCE1E7;
+  --accent:#2B4ACB; --accent-ink:#FFFFFF; --live:#C8352E;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#12161D; --surface:#1A2029; --ink:#E6EAF0; --muted:#8C97A8; --line:#2A3240;
+    --accent:#8FA6FF; --accent-ink:#0F1420; --live:#FF6B61; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#12161D; --surface:#1A2029; --ink:#E6EAF0; --muted:#8C97A8; --line:#2A3240;
+  --accent:#8FA6FF; --accent-ink:#0F1420; --live:#FF6B61; color-scheme: dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  display:flex;flex-direction:column}
+header{padding:16px 20px 8px;display:flex;align-items:baseline;justify-content:space-between;gap:12px;max-width:760px;width:100%;margin:0 auto}
+h1{font-size:1.05rem;font-weight:700;margin:0}
+.dirbtn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 14px;font:inherit;font-size:.9rem;font-weight:500;cursor:pointer}
+.dirbtn span{color:var(--muted);font-weight:400;margin:0 4px}
+main{flex:1;overflow-y:auto;width:100%}
+.feed{max-width:760px;margin:0 auto;padding:8px 20px 24px;display:flex;flex-direction:column;gap:22px}
+.empty{color:var(--muted);line-height:1.8;padding:32px 0;font-size:.95rem}
+.empty strong{color:var(--ink);font-weight:500}
+.pair{border-left:3px solid var(--line);padding-left:14px}
+.pair.latest{border-left-color:var(--accent)}
+.zh{font-size:.95rem;color:var(--muted);line-height:1.7;margin:0 0 4px}
+.en{font-family:"Newsreader",Georgia,"Times New Roman",serif;font-size:1.55rem;line-height:1.4;margin:0;font-weight:400}
+.en.tc{font-family:inherit;font-size:1.35rem;line-height:1.6}
+.zh.latin{font-family:"Newsreader",Georgia,serif;font-size:1.05rem}
+.en.pending{color:var(--muted);font-size:1.1rem;font-style:italic}
+.en.err{color:var(--live);font-size:.95rem;font-family:inherit}
+.interim{max-width:760px;margin:0 auto;padding:0 20px 8px;min-height:1.6em;color:var(--muted);font-size:.95rem;width:100%}
+.interim:empty::before{content:""}
+.bar{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);
+  padding:14px 20px calc(14px + env(safe-area-inset-bottom,0px))}
+.bar-inner{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.mic{flex:none;width:64px;height:64px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);
+  display:grid;place-items:center;cursor:pointer;position:relative}
+.mic svg{width:28px;height:28px}
+.mic.on{background:var(--live)}
+.mic.on::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--live);animation:ring 1.6s ease-out infinite}
+@keyframes ring{from{opacity:.8;transform:scale(.92)}to{opacity:0;transform:scale(1.15)}}
+@media (prefers-reduced-motion: reduce){.mic.on::after{animation:none;opacity:.6}}
+.status{flex:1;min-width:0;font-size:.9rem;color:var(--muted);line-height:1.4}
+.status b{color:var(--ink);font-weight:500;display:block}
+.tools{display:flex;gap:6px;flex:none}
+.tool{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:8px;padding:8px 10px;font:inherit;font-size:.85rem;cursor:pointer}
+.tool[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.typebox{max-width:760px;margin:10px auto 0;display:flex;gap:8px}
+.typebox input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:10px 12px;font:inherit;font-size:.95rem}
+.settings{max-width:760px;margin:12px auto 0;font-size:.85rem;color:var(--muted);line-height:1.6}
+.settings p{margin:0 0 6px}.settings b{color:var(--ink);font-weight:500}
+.settings .row{display:flex;gap:6px;margin-top:6px}
+.settings input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:8px 10px;font:inherit}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:480px){.en{font-size:1.35rem}.tools .tool{padding:8px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>即時語音翻譯</h1>
+  <button class="dirbtn" id="dir" title="切換翻譯方向">中文<span>→</span>English</button>
+</header>
+<main id="scroller">
+  <div class="feed" id="feed">
+    <div class="empty" id="empty">
+      <strong>按下麥克風開始說話。</strong><br>
+      每講完一句，翻譯會自動出現在這裡。點右上角可切換中翻英或英翻中。<br>
+      不方便說話時，也可以在下方直接打字。
+    </div>
+  </div>
+</main>
+<div class="interim" id="interim" aria-live="polite"></div>
+<div class="bar">
+  <div class="bar-inner">
+    <button class="mic" id="mic" aria-label="開始收音">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
+    </button>
+    <div class="status" id="status"><b>待命中</b>點麥克風開始</div>
+    <div class="tools">
+      <button class="tool" id="speak" aria-pressed="false" title="自動朗讀翻譯">朗讀</button>
+      <button class="tool" id="copy" title="複製全部翻譯">複製</button>
+      <button class="tool" id="clear" title="清除紀錄">清除</button>
+      <button class="tool" id="gear" title="翻譯設定" aria-expanded="false">設定</button>
+    </div>
+  </div>
+  <div class="settings" id="settings" hidden>
+    <p>翻譯引擎：<b id="engine">Google 翻譯（免費）</b></p>
+    <label for="key">填入 Claude API key 可改用 Claude 翻譯，語氣更自然。key 只存在這台裝置的瀏覽器。</label>
+    <div class="row"><input id="key" type="password" placeholder="sk-ant-..." autocomplete="off"><button class="tool" id="savekey" type="button">儲存</button><button class="tool" id="delkey" type="button">移除</button></div>
+  </div>
+  <form class="typebox" id="typebox" autocomplete="off">
+    <input id="typed" placeholder="或輸入中文，按 Enter 翻譯" aria-label="輸入要翻譯的文字">
+  </form>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const feed=$("feed"), empty=$("empty"), interimEl=$("interim"), statusEl=$("status"),
+        micBtn=$("mic"), speakBtn=$("speak"), scroller=$("scroller"), dirBtn=$("dir"), typed=$("typed");
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  const MODES = {
+    zh2en: { from:"中文", to:"English", recLang:"zh-TW", ttsLang:"en-US", placeholder:"或輸入中文，按 Enter 翻譯",
+      instr:"You are a live interpreter translating spoken Taiwanese Mandarin into natural, fluent English. Output ONLY the English translation of the new line. No quotes, no notes, no romanization." },
+    en2zh: { from:"English", to:"中文", recLang:"en-US", ttsLang:"zh-TW", placeholder:"Or type English, press Enter",
+      instr:"You are a live interpreter translating spoken English into natural, fluent Traditional Chinese as used in Taiwan (繁體中文、台灣用語). Output ONLY the Chinese translation of the new line. No quotes, no notes, no English." }
+  };
+  let mode = "zh2en";
+
+  const KEY_STORE = "lt_claude_key";
+  function getKey(){ try{ return localStorage.getItem(KEY_STORE)||""; }catch(e){ return ""; } }
+  let listening = false, rec = null, speakOn = false;
+  const queue = []; let busy = false;
+  const history = []; // {src, out, mode}
+
+  function setStatus(title, sub){ statusEl.innerHTML = ""; const b=document.createElement("b"); b.textContent=title; statusEl.append(b, document.createTextNode(sub||"")); }
+
+  function renderEngine(){ $("engine").textContent = getKey() ? "Claude（你的 API key）" : "Google 翻譯（免費）"; }
+  $("gear").addEventListener("click", () => {
+    const p=$("settings"); p.hidden=!p.hidden; $("gear").setAttribute("aria-expanded", String(!p.hidden));
+  });
+  $("savekey").addEventListener("click", () => {
+    const v=$("key").value.trim(); if(!v) return;
+    try{ localStorage.setItem(KEY_STORE, v); }catch(e){}
+    $("key").value=""; renderEngine(); setStatus("已改用 Claude 翻譯","");
+  });
+  $("delkey").addEventListener("click", () => {
+    try{ localStorage.removeItem(KEY_STORE); }catch(e){}
+    renderEngine(); setStatus("已改回 Google 翻譯","");
+  });
+  renderEngine();
+
+  async function googleTranslate(text, m){
+    const sl = m.recLang==="zh-TW" ? "zh-TW" : "en", tl = m.ttsLang==="zh-TW" ? "zh-TW" : "en";
+    const url = "https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl="+sl+"&tl="+tl+"&q="+encodeURIComponent(text);
+    const r = await fetch(url); if(!r.ok) throw new Error("Google 翻譯回應 "+r.status);
+    const j = await r.json(); return (j[0]||[]).map(x=>x[0]).join("");
+  }
+  async function claudeTranslate(prompt, key){
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{ "content-type":"application/json", "x-api-key":key, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
+      body: JSON.stringify({ model:"claude-haiku-5-5", max_tokens:1000, messages:[{role:"user", content:prompt}] })
+    });
+    const j = await r.json();
+    if(!r.ok) throw new Error(r.status===401 ? "API key 無效，請到設定重新填寫" : (j.error && j.error.message) || ("Claude 回應 "+r.status));
+    return (j.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+  }
+
+  if (!SR) setStatus("這個瀏覽器不支援語音辨識","請改用 Chrome、Edge 或 Safari；仍可打字翻譯");
+
+  function renderDir(){
+    const m = MODES[mode];
+    dirBtn.innerHTML = "";
+    dirBtn.append(document.createTextNode(m.from));
+    const arrow=document.createElement("span"); arrow.textContent="→"; dirBtn.append(arrow);
+    dirBtn.append(document.createTextNode(m.to));
+    typed.placeholder = m.placeholder;
+  }
+
+  function scrollDown(){ scroller.scrollTop = scroller.scrollHeight; }
+
+  function addPair(src){
+    empty.remove();
+    feed.querySelectorAll(".pair.latest").forEach(p=>p.classList.remove("latest"));
+    const wrap=document.createElement("div"); wrap.className="pair latest";
+    const z=document.createElement("p"); z.className = mode==="en2zh" ? "zh latin" : "zh"; z.textContent=src;
+    const e=document.createElement("p"); e.className="en pending"; e.textContent="翻譯中…";
+    wrap.append(z,e); feed.append(wrap); scrollDown();
+    const item={src, out:"", mode, el:e}; history.push(item);
+    queue.push(item); pump();
+  }
+
+  async function pump(){
+    if (busy || !queue.length) return;
+    busy = true;
+    const item = queue.shift();
+    try { await translate(item); } finally { busy = false; pump(); }
+  }
+
+  function outClass(item){ return item.mode==="en2zh" ? "en tc" : "en"; }
+
+  async function translate(item){
+    const m = MODES[item.mode];
+    const key = getKey();
+    try{
+      if (key){
+        const context = history.filter(h=>h.out && h.mode===item.mode).slice(-3).map(h=>`${h.src} => ${h.out}`).join("\n");
+        const prompt =
+`${m.instr}
+The input comes from speech recognition, so it may lack punctuation or contain small recognition errors; infer the intended meaning.
+${context ? "\nRecent lines for context (do not translate again):\n"+context+"\n" : ""}
+New line:
+${item.src}`;
+        item.out = (await claudeTranslate(prompt, key)).trim();
+      } else {
+        item.out = (await googleTranslate(item.src, m)).trim();
+      }
+      item.el.className=outClass(item); item.el.textContent=item.out || "（沒有可翻譯的內容）";
+      scrollDown();
+      if (speakOn && item.out) say(item.out, m.ttsLang);
+    }catch(err){
+      item.el.className="en err";
+      item.el.textContent="這句翻譯失敗：" + (err && err.message ? err.message : "請檢查網路連線");
+    }
+  }
+
+  function say(text, lang){
+    try{
+      if(!("speechSynthesis" in window)) return;
+      const u=new SpeechSynthesisUtterance(text); u.lang=lang; u.rate=1;
+      speechSynthesis.speak(u);
+    }catch(e){}
+  }
+
+  function start(){
+    if(!SR) return;
+    rec = new SR();
+    rec.lang = MODES[mode].recLang;
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.onresult = ev => {
+      let interim = "";
+      for (let i=ev.resultIndex; i<ev.results.length; i++){
+        const r = ev.results[i];
+        if (r.isFinal){ const t=r[0].transcript.trim(); if(t) addPair(t); }
+        else interim += r[0].transcript;
+      }
+      interimEl.textContent = interim;
+    };
+    rec.onerror = ev => {
+      if (ev.error==="not-allowed" || ev.error==="service-not-allowed"){
+        listening=false; updateMic();
+        setStatus("無法使用麥克風","請在瀏覽器允許麥克風權限後再試");
+      } else if (ev.error==="no-speech" || ev.error==="aborted"){ /* restart on end */ }
+      else setStatus("收音中斷",`（${ev.error}）會自動重新連線`);
+    };
+    const thisRec = rec;
+    rec.onend = () => { interimEl.textContent=""; if (listening && rec===thisRec) { try{ rec.start(); }catch(e){} } };
+    try{ rec.start(); listening=true; }catch(e){ listening=false; }
+    updateMic();
+  }
+  function stop(){ listening=false; try{ rec && rec.stop(); }catch(e){} updateMic(); }
+  function updateMic(){
+    micBtn.classList.toggle("on", listening);
+    micBtn.setAttribute("aria-label", listening ? "停止收音" : "開始收音");
+    if (listening) setStatus("收音中", mode==="zh2en" ? "說中文，停頓一下就會翻譯" : "Speak English, pause to translate");
+    else if (SR) setStatus("待命中","點麥克風開始");
+  }
+
+  dirBtn.addEventListener("click", () => {
+    mode = mode==="zh2en" ? "en2zh" : "zh2en";
+    renderDir();
+    if (listening){
+      const old = rec; rec = null;
+      try{ old && old.abort(); }catch(e){}
+      interimEl.textContent="";
+      start();
+    } else updateMic();
+  });
+  micBtn.addEventListener("click", () => listening ? stop() : start());
+  speakBtn.addEventListener("click", () => {
+    speakOn = !speakOn; speakBtn.setAttribute("aria-pressed", String(speakOn));
+    if(!speakOn && "speechSynthesis" in window) speechSynthesis.cancel();
+  });
+  $("copy").addEventListener("click", async () => {
+    const done = history.filter(h=>h.out);
+    if(!done.length){ setStatus("還沒有翻譯可複製",""); return; }
+    try{ await navigator.clipboard.writeText(done.map(h=>h.out).join("\n")); setStatus("已複製",`共 ${done.length} 句翻譯`); }
+    catch(e){ setStatus("複製失敗","請手動選取文字複製"); }
+  });
+  $("clear").addEventListener("click", () => {
+    history.length=0; queue.length=0;
+    feed.innerHTML=""; feed.append(empty); interimEl.textContent="";
+  });
+  $("typebox").addEventListener("submit", ev => {
+    ev.preventDefault(); const v=typed.value.trim(); if(!v) return;
+    typed.value=""; addPair(v);
+  });
+  renderDir();
+})();
+</script>
+
+</body>
+</html>
